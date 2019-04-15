@@ -1,7 +1,7 @@
 [![API](https://img.shields.io/badge/API-21%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=21)
 
 # prefsutil
-Secure preferences
+Encrytped preferences rapper for Android
 
 Run `gradlew publishToMavenLocal`
 
