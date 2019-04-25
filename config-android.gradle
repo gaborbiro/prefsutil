@@ -1,0 +1,28 @@
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+
+ext {
+    _version = loadVersionName()
+}
+
+android {
+    compileSdkVersion 28
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 28
+        versionCode 1
+        versionName _version
+    }
+}
+
+def loadVersionName() {
+    def inputFile = new File("version.json")
+    if (inputFile.exists()) {
+        def json = new groovy.json.JsonSlurper().parseText(inputFile.text)
+        def ret = sprintf("%d.%d.%d", json.version.major, json.version.minor, json.version.patch)
+        return ret
+    } else {
+        return ""
+    }
+}

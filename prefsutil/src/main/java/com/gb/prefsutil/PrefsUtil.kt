@@ -1,4 +1,4 @@
-package com.gb.lib_prefsutil
+package com.gb.prefsutil
 
 
 import android.annotation.SuppressLint

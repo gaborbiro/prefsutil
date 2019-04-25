@@ -1,4 +1,4 @@
-package com.gb.lib_prefsutil
+package com.gb.prefsutil
 
 /*
  Copyright (C) 2012 Sveinung Kval Bakken, sveinung.bakken@gmail.com
