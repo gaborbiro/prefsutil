@@ -9,7 +9,10 @@ import android.os.Parcelable
 import android.telephony.TelephonyManager
 import android.util.Base64
 import androidx.core.content.getSystemService
-import java.io.*
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
 import java.util.*
 
 class PrefsUtil constructor(private val appContext: Context, private val preferencesName: String) {
@@ -32,8 +35,8 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         }
     }
 
-    operator fun <T> get(key: String, creator: Parcelable.Creator<T>): T? {
-        val data = get(key, null as String?) ?: return null
+    operator fun <T> get(key: String, creator: Parcelable.Creator<T>, defaultValue: T): T {
+        val data = if (containsKey(key)) get(key, "") else return defaultValue
 
         val bytes = Base64.decode(data, 0)
         val parcel = Parcel.obtain()
@@ -42,20 +45,14 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         return creator.createFromParcel(parcel)
     }
 
-    operator fun get(key: String, defaultValues: Map<*, *>): Map<*, *>? {
-        val data = get(key, null as String?) ?: return defaultValues
+    fun <T> getOrNull(key: String, creator: Parcelable.Creator<T>, defaultValue: T? = null): T? {
+        val data = if (containsKey(key)) get(key, "") else return defaultValue
 
-        try {
-            val bytes = Base64.decode(data, 0)
-            val ois = ObjectInputStream(ByteArrayInputStream(bytes, 0, bytes.size))
-            return ois.readObject() as Map<*, *>
-        } catch (e: IOException) {
-            e.printStackTrace()
-        } catch (e: ClassNotFoundException) {
-            e.printStackTrace()
-        }
-
-        return null
+        val bytes = Base64.decode(data, 0)
+        val parcel = Parcel.obtain()
+        parcel.unmarshall(bytes, 0, bytes.size)
+        parcel.setDataPosition(0)
+        return creator.createFromParcel(parcel)
     }
 
     fun put(key: String, map: Map<*, *>) {
@@ -65,8 +62,6 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
             oos.writeObject(map)
             oos.flush()
             put(key, Base64.encodeToString(baos.toByteArray(), 0))
-        } catch (e: IOException) {
-            e.printStackTrace()
         } finally {
             try {
                 oos.close()
@@ -76,23 +71,48 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         }
     }
 
-    operator fun get(key: String, defaultValues: Array<String>?): Array<String?> {
-        val defaultValuesStr: String?
-        if (defaultValues == null) {
-            defaultValuesStr = null
-        } else {
-            defaultValuesStr = defaultValues.joinToString(SEPARATOR)
+    operator fun <K, V> get(key: String, defaultValues: Map<K, V>): Map<K, V> {
+        val data = if (containsKey(key)) get(key, "") else return defaultValues
+        val bytes = Base64.decode(data, 0)
+        val ois = ObjectInputStream(ByteArrayInputStream(bytes, 0, bytes.size))
+        return ois.readObject() as Map<K, V>
+    }
+
+    fun <K, V> getMutable(key: String, defaultValues: MutableMap<K, V>): MutableMap<K, V> {
+        return ObservableMap(get(key, defaultValues).toMutableMap()) {
+            put(key, it)
         }
-        val text = get(key, defaultValuesStr)
-        return if (!text.isNullOrEmpty()) {
-            text.split(SEPARATOR.toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-        } else {
-            arrayOfNulls(0)
-        }
+    }
+
+    fun <K, V> getOrNull(key: String, defaultValues: Map<K, V>? = null): Map<K, V>? {
+        val data = if (containsKey(key)) get(key, "") else return defaultValues
+        val bytes = Base64.decode(data, 0)
+        val ois = ObjectInputStream(ByteArrayInputStream(bytes, 0, bytes.size))
+        return ois.readObject() as Map<K, V>
     }
 
     fun put(key: String, values: Array<String>) {
         put(key, values.joinToString(SEPARATOR))
+    }
+
+    operator fun get(key: String, defaultValues: Array<String>): Array<String> {
+        val value = get(key, defaultValues.joinToString(SEPARATOR))
+        return if (value.isNotEmpty()) {
+            value.split(SEPARATOR.toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+        } else {
+            emptyArray()
+        }
+    }
+
+    fun getOrNull(key: String, defaultValues: Array<String>? = null): Array<String>? {
+        val value = getOrNull(key, null as String)
+        return value?.let {
+            if (value.isNotEmpty()) {
+                value.split(SEPARATOR.toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+            } else {
+                defaultValues
+            }
+        } ?: defaultValues
     }
 
     fun put(key: String, value: Boolean) {
@@ -104,11 +124,20 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         return if (value.isNullOrEmpty()) defaultValue else java.lang.Boolean.valueOf(value)
     }
 
-    fun put(key: String, value: String?) {
-        value?.let { securePreferences.put(key, value) } ?: run { securePreferences.removeValue(key) }
+    fun getOrNull(key: String, defaultValue: Boolean? = null): Boolean? {
+        val value = securePreferences.getString(key)
+        return if (value.isNullOrEmpty()) defaultValue else java.lang.Boolean.valueOf(value)
     }
 
-    operator fun get(key: String, defaultValue: String?): String? {
+    fun put(key: String, value: String) {
+        securePreferences.put(key, value)
+    }
+
+    operator fun get(key: String, defaultValue: String): String {
+        return securePreferences.getString(key) ?: defaultValue
+    }
+
+    fun getOrNull(key: String, defaultValue: String? = null): String? {
         return securePreferences.getString(key) ?: defaultValue
     }
 
@@ -117,6 +146,11 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
     }
 
     operator fun get(key: String, defaultValue: Int): Int {
+        val value = securePreferences.getString(key)
+        return if (value.isNullOrEmpty()) defaultValue else Integer.valueOf(value)
+    }
+
+    fun getOrNull(key: String, defaultValue: Int? = null): Int? {
         val value = securePreferences.getString(key)
         return if (value.isNullOrEmpty()) defaultValue else Integer.valueOf(value)
     }
@@ -130,6 +164,11 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         return if (value.isNullOrEmpty()) defaultValue else java.lang.Long.valueOf(value)
     }
 
+    fun getOrNull(key: String, defaultValue: Long? = null): Long? {
+        val value = securePreferences.getString(key)
+        return if (value.isNullOrEmpty()) defaultValue else java.lang.Long.valueOf(value)
+    }
+
     fun put(key: String, value: Float) {
         securePreferences.put(key, java.lang.Float.toString(value))
     }
@@ -138,6 +177,13 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         val value = securePreferences.getString(key)
         return if (value.isNullOrEmpty()) defaultValue else java.lang.Float.valueOf(value)
     }
+
+    fun getOrNull(key: String, defaultValue: Float? = null): Float? {
+        val value = securePreferences.getString(key)
+        return if (value.isNullOrEmpty()) defaultValue else java.lang.Float.valueOf(value)
+    }
+
+    fun containsKey(key: String): Boolean = securePreferences.containsKey(key)
 
     fun remove(key: String) {
         securePreferences.removeValue(key)
