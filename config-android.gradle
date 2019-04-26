@@ -3,6 +3,8 @@ apply plugin: 'kotlin-android-extensions'
 
 ext {
     _version = loadVersionName()
+    _artifactId = 'prefsutil'
+    _groupId = 'com.gb.prefsutil'
 }
 
 android {

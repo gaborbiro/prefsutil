@@ -2,9 +2,6 @@ apply plugin: 'com.android.library'
 apply from: '../config-android.gradle'
 apply plugin: 'maven-publish'
 
-def _artifactId = 'prefsutil'
-def _groupId = 'com.gb.prefsutil'
-
 android {
     buildTypes {
         release {
@@ -20,62 +17,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 }
 
+
+
 apply from: 'bintray.gradle'
-
-task androidSourcesJar(type: Jar) {
-    from android.sourceSets.main.java.srcDirs
-    classifier "sources"
-}
-
-publishing {
-    publications {
-        library(MavenPublication) {
-            setGroupId(_groupId)
-            setArtifactId(_artifactId)
-            version android.defaultConfig.versionName
-
-            println "publishing: " + _groupId
-            println "publishing: " + _artifactId
-            println "publishing: " + bundleReleaseAar
-
-            artifact(androidSourcesJar)
-            artifact(bundleReleaseAar)
-
-            pom.withXml {
-                final dependenciesNode = asNode().appendNode('dependencies')
-
-                ext.addDependency = { Dependency dep, String scope ->
-                    if (dep.group == null || dep.version == null || dep.name == null || dep.name == "unspecified")
-                        return // ignore invalid dependencies
-
-                    final dependencyNode = dependenciesNode.appendNode('dependency')
-                    dependencyNode.appendNode('groupId', dep.group)
-                    dependencyNode.appendNode('artifactId', dep.name)
-                    dependencyNode.appendNode('version', dep.version)
-                    dependencyNode.appendNode('scope', scope)
-
-                    if (!dep.transitive) {
-                        // If this dependency is transitive, we should force exclude all its dependencies them from the POM
-                        final exclusionNode = dependencyNode.appendNode('exclusions').appendNode('exclusion')
-                        exclusionNode.appendNode('groupId', '*')
-                        exclusionNode.appendNode('artifactId', '*')
-                    } else if (!dep.properties.excludeRules.empty) {
-                        // Otherwise add specified exclude rules
-                        final exclusionNode = dependencyNode.appendNode('exclusions').appendNode('exclusion')
-                        dep.properties.excludeRules.each { ExcludeRule rule ->
-                            exclusionNode.appendNode('groupId', rule.group ?: '*')
-                            exclusionNode.appendNode('artifactId', rule.module ?: '*')
-                        }
-                    }
-                }
-
-                // List all "compile" dependencies (for old Gradle)
-                configurations.compile.getDependencies().each { dep -> addDependency(dep, "compile") }
-                // List all "api" dependencies (for new Gradle) as "compile" dependencies
-                configurations.api.getDependencies().each { dep -> addDependency(dep, "compile") }
-                // List all "implementation" dependencies (for new Gradle) as "runtime" dependencies
-                configurations.implementation.getDependencies().each { dep -> addDependency(dep, "runtime") }
-            }
-        }
-    }
-}
+apply from: 'mavenLocal.gradle'

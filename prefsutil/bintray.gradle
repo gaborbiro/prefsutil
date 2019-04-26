@@ -1,5 +1,4 @@
-def _artifactId = 'prefsutil'
-def _groupId = 'com.gb.prefsutil'
+// Requires _groupId, _artifactId, _version
 
 ext {
     bintrayRepo = 'maven'
