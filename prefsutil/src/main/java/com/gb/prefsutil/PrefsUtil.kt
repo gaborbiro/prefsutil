@@ -78,8 +78,8 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         return ois.readObject() as Map<K, V>
     }
 
-    fun <K, V> getMutable(key: String, defaultValues: MutableMap<K, V>): MutableMap<K, V> {
-        return ObservableMap(get(key, defaultValues).toMutableMap()) {
+    inline fun <reified K, reified V> getMutable(key: String, defaultValues: MutableMap<K, V>? = null): MutableMap<K, V> {
+        return ObservableMap(get(key, defaultValues ?: emptyMap()).toMutableMap()) {
             put(key, it)
         }
     }
