@@ -26,12 +26,12 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         )
     }
 
-    fun put(key: String, parcelable: Parcelable) {
+    fun set(key: String, parcelable: Parcelable) {
         Parcel.obtain().apply {
             parcelable.writeToParcel(this, 0)
             val bytes = marshall()
             recycle()
-            put(key, Base64.encodeToString(bytes, 0))
+            set(key, Base64.encodeToString(bytes, 0))
         }
     }
 
@@ -45,8 +45,8 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         return creator.createFromParcel(parcel)
     }
 
-    fun <T> getOrNull(key: String, creator: Parcelable.Creator<T>, defaultValue: T? = null): T? {
-        val data = if (containsKey(key)) get(key, "") else return defaultValue
+    fun <T> get(key: String, creator: Parcelable.Creator<T>): T? {
+        val data = if (containsKey(key)) get(key, "") else return null
 
         val bytes = Base64.decode(data, 0)
         val parcel = Parcel.obtain()
@@ -55,132 +55,167 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         return creator.createFromParcel(parcel)
     }
 
-    fun put(key: String, map: Map<*, *>) {
-        val baos = ByteArrayOutputStream()
-        val oos = ObjectOutputStream(baos)
-        try {
-            oos.writeObject(map)
-            oos.flush()
-            put(key, Base64.encodeToString(baos.toByteArray(), 0))
-        } finally {
-            try {
-                oos.close()
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    operator fun <K, V> get(key: String, defaultValues: Map<K, V>): Map<K, V> {
-        val data = if (containsKey(key)) get(key, "") else return defaultValues
-        val bytes = Base64.decode(data, 0)
-        val ois = ObjectInputStream(ByteArrayInputStream(bytes, 0, bytes.size))
-        return ois.readObject() as Map<K, V>
-    }
-
-    inline fun <reified K, reified V> getMutable(key: String, defaultValues: MutableMap<K, V>? = null): MutableMap<K, V> {
-        return ObservableMap(get(key, defaultValues ?: emptyMap()).toMutableMap()) {
-            put(key, it)
-        }
-    }
-
-    fun <K, V> getOrNull(key: String, defaultValues: Map<K, V>? = null): Map<K, V>? {
-        val data = if (containsKey(key)) get(key, "") else return defaultValues
-        val bytes = Base64.decode(data, 0)
-        val ois = ObjectInputStream(ByteArrayInputStream(bytes, 0, bytes.size))
-        return ois.readObject() as Map<K, V>
-    }
-
-    fun put(key: String, values: Array<String>) {
-        put(key, values.joinToString(SEPARATOR))
-    }
-
-    operator fun get(key: String, defaultValues: Array<String>): Array<String> {
-        val value = get(key, defaultValues.joinToString(SEPARATOR))
-        return if (value.isNotEmpty()) {
-            value.split(SEPARATOR.toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+    inline operator fun <reified T> set(key: String, value: T?) {
+        if (value == null) {
+            remove(key)
         } else {
-            emptyArray()
+            return when (T::class) {
+                Boolean::class -> {
+                    set(key, java.lang.Boolean.toString(value as Boolean))
+                }
+                Int::class -> {
+                    set(key, Integer.toString(value as Int))
+                }
+                String::class -> {
+                    set(key, value as String)
+                }
+                Long::class -> {
+                    set(key, java.lang.Long.toString(value as Long))
+                }
+                Float::class -> {
+                    set(key, java.lang.Float.toString(value as Float))
+                }
+                Map::class -> {
+                    val baos = ByteArrayOutputStream()
+                    val oos = ObjectOutputStream(baos)
+                    try {
+                        oos.writeObject(value)
+                        oos.flush()
+                        set(key, Base64.encodeToString(baos.toByteArray(), 0))
+                    } finally {
+                        try {
+                            oos.close()
+                        } catch (e: Throwable) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+                is Array<*> -> {
+                    set(key, (value as Array<*>).joinToString(SEPARATOR))
+                }
+                else -> throw IllegalArgumentException("Unsupported type ${T::class}")
+            }
         }
     }
 
-    fun getOrNull(key: String, defaultValues: Array<String>? = null): Array<String>? {
-        val value = getOrNull(key, null as String)
-        return value?.let {
-            if (value.isNotEmpty()) {
-                value.split(SEPARATOR.toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-            } else {
-                defaultValues
-            }
-        } ?: defaultValues
-    }
-
-    fun put(key: String, value: Boolean) {
-        securePreferences.put(key, java.lang.Boolean.toString(value))
-    }
-
-    operator fun get(key: String, defaultValue: Boolean): Boolean {
-        val value = securePreferences.getString(key)
-        return if (value.isNullOrEmpty()) defaultValue else java.lang.Boolean.valueOf(value)
-    }
-
-    fun getOrNull(key: String, defaultValue: Boolean? = null): Boolean? {
-        val value = securePreferences.getString(key)
-        return if (value.isNullOrEmpty()) defaultValue else java.lang.Boolean.valueOf(value)
-    }
-
-    fun put(key: String, value: String) {
+    fun set(key: String, value: String) {
         securePreferences.put(key, value)
+    }
+
+    inline operator fun <reified T> get(key: String): T? {
+        val data = if (containsKey(key)) get(key, "") else return null
+        if (data.isBlank()) return null
+
+        return when (T::class) {
+            Boolean::class -> {
+                java.lang.Boolean.valueOf(data)
+            }
+            Int::class -> {
+                Integer.valueOf(data)
+            }
+            String::class -> {
+                data
+            }
+            Long::class -> {
+                java.lang.Long.valueOf(data)
+            }
+            Float::class -> {
+                java.lang.Float.valueOf(data)
+            }
+            MutableMap::class -> {
+                val bytes = Base64.decode(data, 0)
+                val ois = ObjectInputStream(ByteArrayInputStream(bytes, 0, bytes.size))
+                ObservableMap(ois.readObject() as MutableMap<*, *>) {
+                    set(key, it)
+                }
+            }
+            Map::class -> {
+                val bytes = Base64.decode(data, 0)
+                val ois = ObjectInputStream(ByteArrayInputStream(bytes, 0, bytes.size))
+                ois.readObject()
+            }
+            is Array<*> -> {
+                data.split(SEPARATOR.toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+            }
+            else -> throw IllegalArgumentException("Unsupported type ${T::class}")
+        } as T?
+    }
+
+    inline operator fun <reified T> get(key: String, defaultValue: T): T {
+        val data = if (containsKey(key)) get(key, "") else ""
+
+        return when (T::class) {
+            Boolean::class -> {
+                if (data.isBlank()) {
+                    defaultValue
+                } else {
+                    java.lang.Boolean.valueOf(data)
+                }
+            }
+            Int::class -> {
+                if (data.isBlank()) {
+                    defaultValue
+                } else {
+                    Integer.valueOf(data)
+                }
+            }
+            String::class -> {
+                if (data.isBlank()) {
+                    defaultValue
+                } else {
+                    data
+                }
+            }
+            Long::class -> {
+                if (data.isBlank()) {
+                    defaultValue
+                } else {
+                    java.lang.Long.valueOf(data)
+                }
+            }
+            Float::class -> {
+                if (data.isBlank()) {
+                    defaultValue
+                } else {
+                    java.lang.Float.valueOf(data)
+                }
+            }
+            MutableMap::class -> {
+                if (data.isBlank()) {
+                    set(key, defaultValue)
+                    ObservableMap(defaultValue as MutableMap<*, *>) {
+                        set(key, it)
+                    }
+                } else {
+                    val bytes = Base64.decode(data, 0)
+                    val ois = ObjectInputStream(ByteArrayInputStream(bytes, 0, bytes.size))
+                    ObservableMap(ois.readObject() as MutableMap<*, *>) {
+                        set(key, it)
+                    }
+                }
+            }
+            Map::class -> {
+                if (data.isBlank()) {
+                    defaultValue
+                } else {
+                    val bytes = Base64.decode(data, 0)
+                    val ois = ObjectInputStream(ByteArrayInputStream(bytes, 0, bytes.size))
+                    ois.readObject()
+                }
+            }
+            is Array<*> -> {
+                if (data.isBlank()) {
+                    defaultValue
+                } else {
+                    data.split(SEPARATOR.toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                }
+            }
+            else -> throw IllegalArgumentException("Unsupported type ${T::class}")
+        } as T
     }
 
     operator fun get(key: String, defaultValue: String): String {
         return securePreferences.getString(key) ?: defaultValue
-    }
-
-    fun getOrNull(key: String, defaultValue: String? = null): String? {
-        return securePreferences.getString(key) ?: defaultValue
-    }
-
-    fun put(key: String, value: Int) {
-        securePreferences.put(key, Integer.toString(value))
-    }
-
-    operator fun get(key: String, defaultValue: Int): Int {
-        val value = securePreferences.getString(key)
-        return if (value.isNullOrEmpty()) defaultValue else Integer.valueOf(value)
-    }
-
-    fun getOrNull(key: String, defaultValue: Int? = null): Int? {
-        val value = securePreferences.getString(key)
-        return if (value.isNullOrEmpty()) defaultValue else Integer.valueOf(value)
-    }
-
-    fun put(key: String, value: Long) {
-        securePreferences.put(key, java.lang.Long.toString(value))
-    }
-
-    operator fun get(key: String, defaultValue: Long): Long {
-        val value = securePreferences.getString(key)
-        return if (value.isNullOrEmpty()) defaultValue else java.lang.Long.valueOf(value)
-    }
-
-    fun getOrNull(key: String, defaultValue: Long? = null): Long? {
-        val value = securePreferences.getString(key)
-        return if (value.isNullOrEmpty()) defaultValue else java.lang.Long.valueOf(value)
-    }
-
-    fun put(key: String, value: Float) {
-        securePreferences.put(key, java.lang.Float.toString(value))
-    }
-
-    operator fun get(key: String, defaultValue: Float): Float {
-        val value = securePreferences.getString(key)
-        return if (value.isNullOrEmpty()) defaultValue else java.lang.Float.valueOf(value)
-    }
-
-    fun getOrNull(key: String, defaultValue: Float? = null): Float? {
-        val value = securePreferences.getString(key)
-        return if (value.isNullOrEmpty()) defaultValue else java.lang.Float.valueOf(value)
     }
 
     fun containsKey(key: String): Boolean = securePreferences.containsKey(key)
@@ -246,4 +281,4 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
     )
 }
 
-private const val SEPARATOR = "dfg,hsdfk__jg34n95t"
+const val SEPARATOR = "dfg,hsdfk__jg34n95t"
