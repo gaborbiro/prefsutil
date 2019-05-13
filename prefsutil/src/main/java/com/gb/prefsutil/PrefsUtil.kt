@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.util.*
+import kotlin.reflect.KProperty
 
 class PrefsUtil constructor(private val appContext: Context, private val preferencesName: String) {
 
@@ -24,6 +25,14 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
             generateUDID(),
             true
         )
+    }
+
+    fun <T> delegate(key: String, defaultValue: T): PrefDelegate<T> {
+        return PrefDelegate(this, key, defaultValue)
+    }
+
+    fun delegate(key: String): NullPrefDelegate {
+        return NullPrefDelegate(this, key)
     }
 
     fun set(key: String, parcelable: Parcelable) {
@@ -59,23 +68,23 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
         if (value == null) {
             remove(key)
         } else {
-            return when (T::class) {
-                Boolean::class -> {
-                    set(key, java.lang.Boolean.toString(value as Boolean))
+            return when (value) {
+                is Boolean -> {
+                    set(key, java.lang.Boolean.toString(value))
                 }
-                Int::class -> {
+                is Int -> {
                     set(key, Integer.toString(value as Int))
                 }
-                String::class -> {
+                is String -> {
                     set(key, value as String)
                 }
-                Long::class -> {
+                is Long -> {
                     set(key, java.lang.Long.toString(value as Long))
                 }
-                Float::class -> {
+                is Float -> {
                     set(key, java.lang.Float.toString(value as Float))
                 }
-                Map::class -> {
+                is Map<*, *> -> {
                     val baos = ByteArrayOutputStream()
                     val oos = ObjectOutputStream(baos)
                     try {
@@ -93,7 +102,7 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
                 is Array<*> -> {
                     set(key, (value as Array<*>).joinToString(SEPARATOR))
                 }
-                else -> throw IllegalArgumentException("Unsupported type ${T::class}")
+                else -> throw IllegalArgumentException("Unsupported type ${T::class} for $key")
             }
         }
     }
@@ -137,7 +146,7 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
             is Array<*> -> {
                 data.split(SEPARATOR.toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
             }
-            else -> throw IllegalArgumentException("Unsupported type ${T::class}")
+            else -> throw IllegalArgumentException("Unsupported type ${T::class} for $key")
         } as T?
     }
 
@@ -210,7 +219,7 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
                     data.split(SEPARATOR.toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
                 }
             }
-            else -> throw IllegalArgumentException("Unsupported type ${T::class}")
+            else -> throw IllegalArgumentException("Unsupported type ${T::class} for $key")
         } as T
     }
 
@@ -282,3 +291,21 @@ class PrefsUtil constructor(private val appContext: Context, private val prefere
 }
 
 const val SEPARATOR = "dfg,hsdfk__jg34n95t"
+
+class PrefDelegate<T>(val prefsUtil: PrefsUtil, val key: String, val defaultValue: T) {
+    operator fun setValue(parent: Any, property: KProperty<*>, value: Any) {
+        prefsUtil[key] = value
+    }
+
+    inline operator fun <reified T2> getValue(parent: Any, property: KProperty<*>): T2 =
+        prefsUtil[key, defaultValue as T2]
+}
+
+class NullPrefDelegate(val prefsUtil: PrefsUtil, val key: String) {
+    operator fun setValue(parent: Any, property: KProperty<*>, value: Any?) {
+        prefsUtil[key] = value
+    }
+
+    inline operator fun <reified T> getValue(parent: Any, property: KProperty<*>): T? =
+        prefsUtil[key]
+}
