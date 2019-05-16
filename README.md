@@ -16,4 +16,8 @@ Publish to bintray: `gradlew install bintrayUpload` (or just push to github)
 
 ## To use
 
-`implementation 'com.gb.prefsutil:prefsutil:${LatestVersion}'`
+````
+dependencies {
+    implementation 'com.gb.prefsutil:prefsutil:${LatestVersion}'
+}
+````
