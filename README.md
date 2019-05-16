@@ -16,8 +16,10 @@ Publish to bintray: `gradlew install bintrayUpload` (or just push to github)
 
 ## To use
 
+Latest version is [ ![Download](https://api.bintray.com/packages/arlecchino/maven/com.gb.prefsutil/images/download.svg) ](https://bintray.com/arlecchino/maven/com.gb.prefsutil/_latestVersion)
+
 ````
 dependencies {
-    implementation 'com.gb.prefsutil:prefsutil:${LatestVersion}'
+    implementation 'com.gb.prefsutil:prefsutil:${latestVersion}'
 }
 ````
