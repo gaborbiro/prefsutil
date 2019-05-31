@@ -1,6 +1,6 @@
 package com.gb.prefsutil
 
-class ObservableMap<K, V>(private val map: MutableMap<K, V>, private val changed: (map: Map<K, V>) -> Unit) :
+class ObservableMap<K, V>(private val map: MutableMap<K, V>, private val changed: (Map<K, V>) -> Unit) :
     MutableMap<K, V> {
 
     override val entries: MutableSet<MutableMap.MutableEntry<K, V>>
@@ -41,7 +41,8 @@ class ObservableMap<K, V>(private val map: MutableMap<K, V>, private val changed
         }
     }
 
-    override val size = map.size
+    override val size: Int
+        get() = map.size
 
     override fun containsKey(key: K) = map.containsKey(key)
 
