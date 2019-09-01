@@ -8,8 +8,9 @@ import android.os.Parcel
 import android.os.Parcelable
 import android.telephony.TelephonyManager
 import androidx.core.content.getSystemService
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import org.jetbrains.annotations.TestOnly
-import java.io.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
@@ -17,6 +18,8 @@ class PrefsUtil private constructor(private val appContext: Context) {
 
     private lateinit var securePreferences: SecurePreferencesAdapter
     private lateinit var base64Adapter: Base64Adapter
+
+    protected val gson = Gson()
 
     constructor(appContext: Context, preferencesName: String) : this(appContext) {
         securePreferences =
@@ -33,7 +36,11 @@ class PrefsUtil private constructor(private val appContext: Context) {
      * For testing
      */
     @TestOnly
-    constructor(appContext: Context, preferencesAdapter: SecurePreferencesAdapter, base64Adapter: Base64Adapter) : this(
+    constructor(
+        appContext: Context,
+        preferencesAdapter: SecurePreferencesAdapter,
+        base64Adapter: Base64Adapter
+    ) : this(
         appContext
     ) {
         securePreferences = preferencesAdapter
@@ -107,10 +114,7 @@ class PrefsUtil private constructor(private val appContext: Context) {
                 is kotlin.Array<*> -> {
                     set(key, value.joinToString(SEPARATOR))
                 }
-                is Serializable -> {
-                    set(key, serialiseObject(value))
-                }
-                else -> throw IllegalArgumentException("Unsupported type ${T::class} for $key")
+                else -> set(key, gson.toJson(value))
             }
         }
     }
@@ -146,12 +150,12 @@ class PrefsUtil private constructor(private val appContext: Context) {
             when (T::class) {
                 kotlin.collections.Map::class -> {
                     val map = (defaultValue as Map<*, *>)
-                    set(key, serialiseObject(map as Serializable))
+                    set(key, gson.toJson(map))
                     map.toObservable(key)
                 }
                 kotlin.collections.List::class -> {
                     val list = (defaultValue as List<*>)
-                    set(key, serialiseObject(list as Serializable))
+                    set(key, gson.toJson(defaultValue))
                     list.toObservable(key)
                 }
                 else -> throw IllegalArgumentException("Unsupported type ${T::class} for $key")
@@ -160,7 +164,8 @@ class PrefsUtil private constructor(private val appContext: Context) {
     }
 
     protected fun get(key: String): String {
-        return securePreferences.getString(key) ?: throw IllegalStateException("$key not set in preferences")
+        return securePreferences.getString(key)
+            ?: throw IllegalStateException("$key not set in preferences")
     }
 
     operator fun get(key: String, defaultValue: String): String {
@@ -295,10 +300,10 @@ class PrefsUtil private constructor(private val appContext: Context) {
                 java.lang.Double.valueOf(data)
             }
             Map::class -> {
-                deserialiseObject(data)
+                gson.fromJson(data, type.java)
             }
             List::class -> {
-                deserialiseObject(data)
+                gson.fromJson(data, type.java)
             }
             else -> throw IllegalArgumentException("Unsupported type $type")
         }
@@ -308,43 +313,17 @@ class PrefsUtil private constructor(private val appContext: Context) {
     protected inline fun <reified T> mapMutable(key: String, data: String): T {
         return when (T::class) {
             kotlin.collections.Map::class -> {
-                (deserialiseObject(data) as Map<*, *>).toObservable(key)
+                (gson.fromJson<T>(data, object : TypeToken<T>() {}.type) as Map<*, *>).toObservable(
+                    key
+                )
             }
             kotlin.collections.List::class -> {
-                (deserialiseObject(data) as List<*>).toObservable(key)
+                (gson.fromJson<T>(data, object : TypeToken<T>() {}.type) as List<*>).toObservable(
+                    key
+                )
             }
             else -> throw IllegalArgumentException("Unsupported type ${T::class} for $key")
         } as T
-    }
-
-    protected fun serialiseObject(value: Serializable): String {
-        val baos = ByteArrayOutputStream()
-        val oos = ObjectOutputStream(baos)
-        try {
-            oos.writeObject(value)
-            oos.flush()
-            return base64Adapter.encodeToString(baos.toByteArray(), 0)
-        } finally {
-            try {
-                oos.close()
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    protected fun deserialiseObject(data: String): Any {
-        var ois: ObjectInputStream? = null
-        var bais: ByteArrayInputStream? = null
-        try {
-            val bytes = base64Adapter.decode(data, 0)
-            bais = ByteArrayInputStream(bytes, 0, bytes.size)
-            ois = ObjectInputStream(bais)
-            return ois.readObject()
-        } finally {
-            ois?.close()
-            bais?.close()
-        }
     }
 
     protected fun Map<*, *>.toObservable(key: String) = ObservableMap(this.toMutableMap()) {
