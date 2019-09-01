@@ -14,7 +14,6 @@ publishing {
 
             println "publishing: " + _groupId
             println "publishing: " + _artifactId
-            println "publishing: " + bundleReleaseAar
 
             artifact(androidSourcesJar)
             artifact(bundleReleaseAar)
