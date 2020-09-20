@@ -16,14 +16,12 @@ import org.jetbrains.annotations.TestOnly
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
-class PrefsUtil private constructor(private val appContext: Context) {
+class PrefsUtil private constructor(private val appContext: Context, val gson: Gson) {
 
     private lateinit var securePreferences: SecurePreferencesAdapter
     private lateinit var base64Adapter: Base64Adapter
 
-    protected val gson = Gson()
-
-    constructor(appContext: Context, preferencesName: String) : this(appContext) {
+    constructor(appContext: Context, preferencesName: String, gson: Gson) : this(appContext, gson) {
         securePreferences = SecurePreferences(
             appContext,
             preferencesName,
@@ -40,9 +38,11 @@ class PrefsUtil private constructor(private val appContext: Context) {
     constructor(
         appContext: Context,
         preferencesAdapter: SecurePreferencesAdapter,
-        base64Adapter: Base64Adapter
+        base64Adapter: Base64Adapter,
+        gson: Gson
     ) : this(
-        appContext
+        appContext,
+        gson
     ) {
         securePreferences = preferencesAdapter
         this.base64Adapter = base64Adapter

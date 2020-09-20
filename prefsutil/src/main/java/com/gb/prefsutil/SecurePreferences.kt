@@ -164,7 +164,6 @@ constructor(
         } catch (e: UnsupportedEncodingException) {
             throw SecurePreferencesException(e)
         }
-
     }
 
     fun put(key: String, value: String?) {
