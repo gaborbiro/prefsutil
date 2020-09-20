@@ -1,0 +1,60 @@
+---
+format_version: '7'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: android
+trigger_map:
+- push_branch: master
+  workflow: bintray
+- pull_request_source_branch: "*"
+  workflow: bintray
+workflows:
+  bintray:
+    steps:
+    - activate-ssh-key@4.0.3:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone@4.0.14: {}
+    - cache-pull@2.0.1: {}
+    - install-missing-android-tools@2.3.5:
+        inputs:
+        - gradlew_path: "$PROJECT_LOCATION/gradlew"
+    - gradle-unit-test@1.0.5:
+        inputs:
+        - gradlew_file_path: "./gradlew"
+        - unit_test_task: testDebugUnitTest
+    - gradle-runner@1.8.5:
+        inputs:
+        - gradlew_path: "./gradlew"
+        - gradle_task: install bintrayUpload
+    - cache-push@2.0.5: {}
+  test:
+    steps:
+    - activate-ssh-key@4.0.3:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone@4.0.14: {}
+    - cache-pull@2.0.1: {}
+    - install-missing-android-tools@2.3.5:
+        inputs:
+        - gradlew_path: "$PROJECT_LOCATION/gradlew"
+    - gradle-unit-test@1.0.5:
+        inputs:
+        - gradlew_path: "./gradlew"
+        - gradlew_file_path: "./gradlew"
+        - unit_test_task: testDebugUnitTest
+    - cache-push@2.0.5: {}
+app:
+  envs:
+  - opts:
+      is_expand: false
+    PROJECT_LOCATION: "."
+  - opts:
+      is_expand: false
+    MODULE: prefsutil
+  - opts:
+      is_expand: false
+    VARIANT: ''
+  - opts:
+      is_expand: false
+    BINTRAY_USER: arlecchino
+  - opts:
+      is_expand: false
+    BINTRAY_KEY: 4305e780317ef6f8d5f7612c50199515d862a0d8
