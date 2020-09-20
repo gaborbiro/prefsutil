@@ -88,7 +88,7 @@ class PrefsUtil private constructor(private val appContext: Context) {
         return creator.createFromParcel(parcel)
     }
 
-    inline operator fun <reified T> set(key: String, value: T?) {
+    operator fun <T> set(key: String, value: T?) {
         if (value == null) {
             remove(key)
         } else {

@@ -23,3 +23,16 @@ dependencies {
     implementation 'com.gb.prefsutil:prefsutil:${latestVersion}'
 }
 ````
+
+Make sure com.android.tools.build:gradle is 3.3.2
+Gradle wrapper is gradle-4.10.1-all.zip
+compileSdkVersion 28
+targetSdkVersion 28
+
+in your app/lib build.gradle:
+
+ext {
+    _version = "1.0.1"
+    _artifactId = 'some-id'
+    _groupId = 'some-package'
+}
