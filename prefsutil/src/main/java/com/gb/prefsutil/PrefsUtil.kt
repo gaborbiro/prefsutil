@@ -7,6 +7,8 @@ import android.content.SharedPreferences
 import android.os.Parcel
 import android.os.Parcelable
 import android.telephony.TelephonyManager
+import android.widget.Toast
+import androidx.core.content.edit
 import androidx.core.content.getSystemService
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -22,13 +24,12 @@ class PrefsUtil private constructor(private val appContext: Context) {
     protected val gson = Gson()
 
     constructor(appContext: Context, preferencesName: String) : this(appContext) {
-        securePreferences =
-            SecurePreferences(
-                appContext,
-                preferencesName,
-                generateUDID(),
-                true
-            ).adapt()
+        securePreferences = SecurePreferences(
+            appContext,
+            preferencesName,
+            generateUDID(appContext),
+            true
+        ).adapt()
         base64Adapter = Base64Adapter.androidBase64Adapter()
     }
 
@@ -212,10 +213,10 @@ class PrefsUtil private constructor(private val appContext: Context) {
      * android_id and deviceId, it falls back to a randomly generated id, that is persisted in SharedPreferences.
      */
     @SuppressLint("MissingPermission", "HardwareIds")
-    private fun generateUDID(): String {
+    private fun generateUDID(context: Context): String {
         val androidId: String = getHardwareId()
         // androidId changes with every factory reset (which is useful in our case)
-        return if ("9774d56d682e549c" != androidId) {
+        val udid = if ("9774d56d682e549c" != androidId) {
             java.util.UUID.nameUUIDFromBytes(androidId.toByteArray(charset("utf8")))
         } else {
             // On some 2.2 devices androidId is always 9774d56d682e549c, which is unsafe
@@ -226,6 +227,16 @@ class PrefsUtil private constructor(private val appContext: Context) {
                 java.util.UUID.nameUUIDFromBytes(deviceId.toByteArray(charset("utf8")))
             }
         }.toString()
+        // TODO remove after the prefs reset bug is sorted out
+        context.getSharedPreferences("SharedPrefs", Context.MODE_PRIVATE).apply {
+            if (this.getString("udid", null) != udid) {
+                Toast.makeText(context, "PrefsUtils UDID changed to $udid", Toast.LENGTH_LONG).show()
+                edit {
+                    putString("udid", udid)
+                }
+            }
+        }
+        return udid
     }
 
     @SuppressLint("HardwareIds")

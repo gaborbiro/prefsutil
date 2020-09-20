@@ -12,6 +12,9 @@ Bitrise: https://app.bitrise.io/app/7e604b862529069d
 
 Publish to mavenLocal: `gradlew publishToMavenLocal`
 
+To include a project from your local maven repo, just add `mavenLocal()` to your allprojects/repositories
+
+
 Publish to bintray: `gradlew install bintrayUpload` (or just push to github)
 
 ## To use
@@ -25,14 +28,19 @@ dependencies {
 ````
 
 Make sure com.android.tools.build:gradle is 3.3.2
+
 Gradle wrapper is gradle-4.10.1-all.zip
+
 compileSdkVersion 28
+
 targetSdkVersion 28
 
 in your app/lib build.gradle:
 
+````
 ext {
     _version = "1.0.1"
     _artifactId = 'some-id'
     _groupId = 'some-package'
 }
+````
