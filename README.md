@@ -12,14 +12,23 @@ Bitrise: https://app.bitrise.io/app/7e604b862529069d
 
 Publish to mavenLocal: `gradlew publishToMavenLocal`
 
-To include a project from your local maven repo, just add `mavenLocal()` to your allprojects/repositories
+To include a project from your local maven repo, just add `mavenLocal()` to your allprojects/repositories.
 
 
-Publish to bintray: `gradlew install bintrayUpload` (or just increase the version and push to github)
+Publish to bintray: `gradlew install bintrayUpload` (or just update `version.json` and push to github)
 
 ## To use
 
 Latest version is [ ![Download](https://api.bintray.com/packages/arlecchino/maven/com.gb.prefsutil/images/download.svg) ](https://bintray.com/arlecchino/maven/com.gb.prefsutil/_latestVersion)
+
+```
+allprojects {
+    repositories {
+        maven { url "https://dl.bintray.com/arlecchino/maven" }
+//        mavenLocal()
+    }
+}
+```
 
 ````
 dependencies {

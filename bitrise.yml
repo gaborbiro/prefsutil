@@ -10,37 +10,41 @@ trigger_map:
 workflows:
   bintray:
     steps:
-    - activate-ssh-key@4.0.3:
+    - activate-ssh-key@4.0:
         run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
-    - git-clone@4.0.14: {}
-    - cache-pull@2.0.1: {}
-    - install-missing-android-tools@2.3.5:
+    - git-clone@4.0: {}
+    - cache-pull@2.1: {}
+    - install-missing-android-tools@2.3:
         inputs:
         - gradlew_path: "$PROJECT_LOCATION/gradlew"
-    - gradle-unit-test@1.0.5:
+    - android-unit-test@1:
         inputs:
-        - gradlew_file_path: "./gradlew"
-        - unit_test_task: testDebugUnitTest
-    - gradle-runner@1.8.5:
+        - variant: "$VARIANT"
+        - module: prefsutil
+    - gradle-runner@1.9:
         inputs:
         - gradlew_path: "./gradlew"
         - gradle_task: install bintrayUpload
-    - cache-push@2.0.5: {}
+    - cache-push@2.3: {}
+    description: Builds, runs tests and publishes to bintray
   test:
     steps:
-    - activate-ssh-key@4.0.3:
+    - activate-ssh-key@4.0:
         run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
-    - git-clone@4.0.14: {}
-    - cache-pull@2.0.1: {}
-    - install-missing-android-tools@2.3.5:
+    - git-clone@4.0: {}
+    - cache-pull@2.1: {}
+    - install-missing-android-tools@2.3:
         inputs:
         - gradlew_path: "$PROJECT_LOCATION/gradlew"
-    - gradle-unit-test@1.0.5:
+    - android-unit-test@1:
         inputs:
-        - gradlew_path: "./gradlew"
-        - gradlew_file_path: "./gradlew"
-        - unit_test_task: testDebugUnitTest
-    - cache-push@2.0.5: {}
+        - variant: debug
+        - module: prefsutil
+    - cache-push@2.3: {}
+    - deploy-to-bitrise-io@1:
+        inputs:
+        - notify_user_groups: none
+    description: Builds, runs tests
 app:
   envs:
   - opts:
