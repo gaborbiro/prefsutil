@@ -40,10 +40,7 @@ class PrefsUtil private constructor(private val appContext: Context, val gson: G
         preferencesAdapter: SecurePreferencesAdapter,
         base64Adapter: Base64Adapter,
         gson: Gson
-    ) : this(
-        appContext,
-        gson
-    ) {
+    ) : this(appContext, gson) {
         securePreferences = preferencesAdapter
         this.base64Adapter = base64Adapter
     }
@@ -89,30 +86,30 @@ class PrefsUtil private constructor(private val appContext: Context, val gson: G
         return creator.createFromParcel(parcel)
     }
 
-    operator fun <T> set(key: String, value: T?) {
+    operator fun set(key: String, value: Any?) {
         if (value == null) {
             remove(key)
         } else {
             return when (value) {
-                is kotlin.Boolean -> {
+                is Boolean -> {
                     set(key, java.lang.Boolean.toString(value))
                 }
-                is kotlin.Int -> {
-                    set(key, Integer.toString(value as Int))
+                is Int -> {
+                    set(key, value.toString())
                 }
-                is kotlin.String -> {
-                    set(key, value as String)
+                is String -> {
+                    set(key, value)
                 }
-                is kotlin.Long -> {
-                    set(key, java.lang.Long.toString(value as Long))
+                is Long -> {
+                    set(key, value.toString())
                 }
-                is kotlin.Float -> {
-                    set(key, java.lang.Float.toString(value as Float))
+                is Float -> {
+                    set(key, value.toString())
                 }
-                is kotlin.Double -> {
-                    set(key, java.lang.Double.toString(value as Double))
+                is Double -> {
+                    set(key, value.toString())
                 }
-                is kotlin.Array<*> -> {
+                is Array<*> -> {
                     set(key, value.joinToString(SEPARATOR))
                 }
                 else -> set(key, gson.toJson(value))
@@ -126,7 +123,7 @@ class PrefsUtil private constructor(private val appContext: Context, val gson: G
 
     inline operator fun <reified T> get(key: String): T? {
         try {
-            return if (containsKey(key)) map(get(key)) else null
+            return if (containsKey(key)) map(getString(key)) else null
         } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException("${e.message} for $key")
         }
@@ -134,27 +131,27 @@ class PrefsUtil private constructor(private val appContext: Context, val gson: G
 
     inline operator fun <reified T> get(key: String, defaultValue: T): T {
         try {
-            return if (containsKey(key)) map(get(key)) else defaultValue
+            return if (containsKey(key)) map(getString(key)) else defaultValue
         } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException("${e.message} for $key")
         }
     }
 
     inline fun <reified T> getMutable(key: String): T? {
-        val data = if (containsKey(key)) get(key) else return null
+        val data = if (containsKey(key)) getString(key) else return null
         return mapMutable(key, data)
     }
 
     @Suppress("IMPLICIT_CAST_TO_ANY")
     inline fun <reified T> getMutable(key: String, defaultValue: T): T {
-        return if (containsKey(key)) mapMutable(key, get(key)) else {
+        return if (containsKey(key)) mapMutable(key, getString(key)) else {
             when (T::class) {
-                kotlin.collections.Map::class -> {
+                Map::class -> {
                     val map = (defaultValue as Map<*, *>)
                     set(key, gson.toJson(map))
                     map.toObservable(key)
                 }
-                kotlin.collections.List::class -> {
+                List::class -> {
                     val list = (defaultValue as List<*>)
                     set(key, gson.toJson(defaultValue))
                     list.toObservable(key)
@@ -164,7 +161,7 @@ class PrefsUtil private constructor(private val appContext: Context, val gson: G
         }
     }
 
-    protected fun get(key: String): String {
+    fun getString(key: String): String {
         return securePreferences.getString(key)
             ?: throw IllegalStateException("$key not set in preferences")
     }
@@ -230,7 +227,8 @@ class PrefsUtil private constructor(private val appContext: Context, val gson: G
         // TODO remove after the prefs reset bug is sorted out
         context.getSharedPreferences("SharedPrefs", Context.MODE_PRIVATE).apply {
             if (this.getString("udid", null) != udid) {
-                Toast.makeText(context, "PrefsUtils UDID changed to $udid", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "PrefsUtils UDID changed to $udid", Toast.LENGTH_LONG)
+                    .show()
                 edit {
                     putString("udid", udid)
                 }
@@ -245,9 +243,9 @@ class PrefsUtil private constructor(private val appContext: Context, val gson: G
         android.provider.Settings.Secure.ANDROID_ID
     )
 
-    protected inline fun <reified T> map(data: String) = mapType(data, T::class) as T
+    inline fun <reified T> map(data: String) = mapType(data, T::class) as T
 
-    protected fun mapType(data: String, type: KClass<*>): Any {
+    fun mapType(data: String, type: KClass<*>): Any {
         return if (type.qualifiedName == Array<Any>::class.qualifiedName) {
             mapArray(data, type)
         } else {
@@ -255,7 +253,7 @@ class PrefsUtil private constructor(private val appContext: Context, val gson: G
         }
     }
 
-    protected fun mapArray(data: String, type: KClass<*>): Any {
+    fun mapArray(data: String, type: KClass<*>): Any {
         val itemType = type.java.componentType.kotlin
         val list = data.split(SEPARATOR.toRegex()).dropLastWhile { it.isEmpty() }.map {
             mapType(it, itemType)
@@ -321,14 +319,14 @@ class PrefsUtil private constructor(private val appContext: Context, val gson: G
     }
 
     @Suppress("IMPLICIT_CAST_TO_ANY")
-    protected inline fun <reified T> mapMutable(key: String, data: String): T {
+    inline fun <reified T> mapMutable(key: String, data: String): T {
         return when (T::class) {
-            kotlin.collections.Map::class -> {
+            Map::class -> {
                 (gson.fromJson<T>(data, object : TypeToken<T>() {}.type) as Map<*, *>).toObservable(
                     key
                 )
             }
-            kotlin.collections.List::class -> {
+            List::class -> {
                 (gson.fromJson<T>(data, object : TypeToken<T>() {}.type) as List<*>).toObservable(
                     key
                 )
@@ -337,11 +335,11 @@ class PrefsUtil private constructor(private val appContext: Context, val gson: G
         } as T
     }
 
-    protected fun Map<*, *>.toObservable(key: String) = ObservableMap(this.toMutableMap()) {
+    fun Map<*, *>.toObservable(key: String) = ObservableMap(this.toMutableMap()) {
         set(key, it)
     }
 
-    protected fun List<*>.toObservable(key: String) = ObservableList(this.toMutableList()) {
+    fun List<*>.toObservable(key: String) = ObservableList(this.toMutableList()) {
         set(key, it)
     }
 }
@@ -367,10 +365,11 @@ class MutablePrefDelegate<T>(val prefsUtil: PrefsUtil, val key: String, val defa
 }
 
 class NullPrefDelegate(val prefsUtil: PrefsUtil, val key: String) {
+
     operator fun setValue(parent: Any, property: KProperty<*>, value: Any?) {
         prefsUtil.set(key, value)
     }
 
     inline operator fun <reified T> getValue(parent: Any, property: KProperty<*>): T? =
-        prefsUtil.get(key)
+        prefsUtil.get(key) as T?
 }
