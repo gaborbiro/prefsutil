@@ -27,5 +27,6 @@ jobs:
         GPR_API_KEY: ${{ secrets.GPR_API_KEY }}
       run: echo GPR_API_KEY=$GPR_API_KEY > ./local.properties
     - name: Build with Gradle
+      run: ./gradlew assembleDebug
+    - name: Build with Gradle
       run: ./gradlew publish
-      
