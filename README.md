@@ -5,27 +5,3 @@
 Encrypted preferences wrapper for Android
 
 Github: https://github.com/gaborbiro/prefsutil
-
-## How to publish
-
-Locally on your machine: `gradlew publishToMavenLocal`
-
-To include a project from your local maven repo, just add `mavenLocal()` to your allprojects/repositories.
-
-## How to import
-
-You'll need this in your project gradle:
-
-```
-allprojects {
-    repositories {
-        mavenLocal()
-    }
-}
-```
-
-````
-dependencies {
-    implementation 'com.gb.prefsutil:prefsutil:${latestVersion}'
-}
-````
